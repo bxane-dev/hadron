@@ -1,4 +1,4 @@
 customtkinter>=5.2.2
-matplotlib>=3.8
+matplotlib>=3.11.2
 numpy>=1.26
 cryptography>=46.0.0
