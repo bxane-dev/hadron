@@ -1,0 +1,7 @@
+Hadron portable mode
+
+Create an empty file named `portable.flag` next to Hadron.exe.
+
+Hadron will then store its writable data in a HadronData folder next to the
+executable. You can also use the HADRON_DATA_DIR environment variable to select
+a custom data directory.

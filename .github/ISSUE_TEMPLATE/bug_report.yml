@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible Hadron defect.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include the smallest deterministic reproduction you can.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Hadron version
+      placeholder: "3.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Linux/source
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Paste relevant HadronDoctor output with secrets/user data removed.

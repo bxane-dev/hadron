@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use Hadron in demonstrations, teaching, or derivative work, cite the project repository."
+title: "Hadron"
+version: "3.0.0"
+authors:
+  - name: "bxane"
+repository-code: "https://github.com/bxane-dev/hadron"
+url: "https://github.com/bxane-dev/hadron"
+license: "NOASSERTION"

@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+release/
+*release-private*.pem
+*.release-private.pem
+.signing/

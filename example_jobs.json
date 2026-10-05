@@ -1,0 +1,21 @@
+{
+  "events": 5000,
+  "energies": [
+    1000,
+    2500,
+    4000,
+    5500,
+    6500,
+    7000
+  ],
+  "presets": [
+    "STANDARD",
+    "HIGGS STUDY"
+  ],
+  "seed": 42,
+  "repeats": 2,
+  "l1_threshold": 5000,
+  "met_threshold": 500,
+  "higgs_window": 3.0,
+  "noise": true
+}
