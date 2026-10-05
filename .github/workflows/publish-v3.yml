@@ -1,0 +1,147 @@
+name: Publish Hadron v3.0.0
+
+on:
+  push:
+    branches:
+      - "main"
+    paths:
+      - ".release/publish-v3.0.0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_RUN_ID: "37338538884"
+      BUILD_SHA: "d1529280c1cb8e73e12dcb711939b7295956b967"
+      INSTALLER_ARTIFACT_ID: "11357772782"
+      STANDALONE_ARTIFACT_ID: "11357339161"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download tested Windows installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Hadron-Windows-Installer
+          path: release-assets/installer
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ env.BUILD_RUN_ID }}
+
+      - name: Download tested standalone artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Hadron-Windows-Standalone
+          path: release-assets/standalone
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ env.BUILD_RUN_ID }}
+
+      - name: Verify build provenance and signed manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MANIFEST="$(find release-assets -type f -name 'Hadron-v3.0.0-manifest.json' -print -quit)"
+          PUBLIC_KEY="$(find release-assets -type f -name 'release-public.pem' -print -quit)"
+          SIGNATURE=".release/Hadron-v3.0.0-manifest.signature.json"
+
+          test -n "$MANIFEST"
+          test -n "$PUBLIC_KEY"
+          test -f "$SIGNATURE"
+
+          python - "$MANIFEST" "$PUBLIC_KEY" "$SIGNATURE" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+
+          from hadron_release import verify_release_signature
+
+          manifest_path = pathlib.Path(sys.argv[1])
+          public_key = pathlib.Path(sys.argv[2])
+          signature = pathlib.Path(sys.argv[3])
+
+          verification = verify_release_signature(
+              manifest_path,
+              signature,
+              public_key,
+          )
+          if not verification["ok"]:
+              raise SystemExit(
+                  "Ed25519 release signature verification failed: "
+                  + json.dumps(verification, sort_keys=True)
+              )
+
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          if manifest.get("version") != "3.0.0":
+              raise SystemExit("Release manifest version mismatch.")
+          if manifest.get("publisher") != "bxane":
+              raise SystemExit("Release publisher mismatch.")
+          if manifest.get("publisher_github") != "bxane-dev":
+              raise SystemExit("Release GitHub publisher mismatch.")
+          if manifest.get("repository") != "bxane-dev/hadron":
+              raise SystemExit("Release repository mismatch.")
+
+          root = pathlib.Path("release-assets")
+          for entry in manifest["files"]:
+              matches = list(root.rglob(entry["name"]))
+              if len(matches) != 1:
+                  raise SystemExit(
+                      f"Expected exactly one {entry['name']}, found {len(matches)}."
+                  )
+              path = matches[0]
+              if path.stat().st_size != int(entry["size_bytes"]):
+                  raise SystemExit(f"Size mismatch: {entry['name']}")
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              if digest != entry["sha256"]:
+                  raise SystemExit(f"SHA-256 mismatch: {entry['name']}")
+
+          print(f"Verified {len(manifest['files'])} signed release files.")
+          print("Publisher: bxane (bxane-dev)")
+          print("Repository: bxane-dev/hadron")
+          print("Signature: Ed25519 OK")
+          PY
+
+      - name: Assemble GitHub Release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+
+          find release-assets -type f -name '*.exe' -exec cp -f {} publish/ \;
+          cp "$(find release-assets -type f -name 'Hadron-v3.0.0-manifest.json' -print -quit)" publish/
+          cp ".release/Hadron-v3.0.0-manifest.signature.json" publish/
+          cp "$(find release-assets -type f -name 'release-public.pem' -print -quit)" publish/
+
+          git archive             --format=zip             --prefix=hadron/             --output=publish/hadron.zip             "$BUILD_SHA"
+
+          echo "Release assets:"
+          ls -lh publish/
+
+      - name: Publish v3.0.0
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if gh release view v3.0.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v3.0.0 publish/*               --repo "$GITHUB_REPOSITORY"               --clobber
+          else
+            gh release create v3.0.0 publish/*               --repo "$GITHUB_REPOSITORY"               --target "$BUILD_SHA"               --title "Hadron v3.0.0 Stable — bxane (bxane-dev)"               --notes "Hadron v3.0.0 stable release by **bxane (bxane-dev)**.
+
+          Includes the tested Windows installer, 14 standalone Windows executables, signed SHA-256 release manifest, pinned Ed25519 public key, and source archive **hadron.zip**.
+
+          The release manifest is application-level Ed25519 signed with fingerprint:
+          \`738c934d58220a2420103e891add9c7602b119d00a19ff51e9b69ca854a3ee76\`
+
+          Repository: https://github.com/bxane-dev/hadron
+
+          Hadron is synthetic/toy particle-accelerator simulation software. It does not control a real accelerator."
+          fi
