@@ -6,13 +6,17 @@ on:
     paths:
       - "bootstrap/**"
       - ".github/workflows/bootstrap-source.yml"
+  issues:
+    types: [opened]
   workflow_dispatch:
 
 permissions:
   contents: write
+  issues: read
 
 jobs:
   unpack:
+    if: github.event_name != 'issues' || github.event.issue.title == 'bootstrap-hadron-v3-source'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
