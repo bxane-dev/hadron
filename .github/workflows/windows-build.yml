@@ -1,0 +1,189 @@
+name: Windows Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-build.txt
+
+      - name: Run tests
+        shell: pwsh
+        run: python -m unittest discover -s tests -v
+
+      - name: Build Hadron executables
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean Hadron.spec
+          pyinstaller --noconfirm --clean HadronBatch.spec
+          pyinstaller --noconfirm --clean HadronJobs.spec
+          pyinstaller --noconfirm --clean HadronDoctor.spec
+          pyinstaller --noconfirm --clean HadronVerify.spec
+          pyinstaller --noconfirm --clean HadronSign.spec
+          pyinstaller --noconfirm --clean HadronCapsule.spec
+          pyinstaller --noconfirm --clean HadronReproduce.spec
+          pyinstaller --noconfirm --clean HadronRegression.spec
+          pyinstaller --noconfirm --clean HadronCampaign.spec
+          pyinstaller --noconfirm --clean HadronCampaignRun.spec
+          pyinstaller --noconfirm --clean HadronPipeline.spec
+          pyinstaller --noconfirm --clean HadronRecovery.spec
+          pyinstaller --noconfirm --clean HadronUpdater.spec
+          if (-not (Test-Path "dist\Hadron.exe")) { throw "dist\Hadron.exe was not created." }
+          if (-not (Test-Path "dist\HadronBatch.exe")) { throw "dist\HadronBatch.exe was not created." }
+          if (-not (Test-Path "dist\HadronJobs.exe")) { throw "dist\HadronJobs.exe was not created." }
+          if (-not (Test-Path "dist\HadronDoctor.exe")) { throw "dist\HadronDoctor.exe was not created." }
+          if (-not (Test-Path "dist\HadronVerify.exe")) { throw "dist\HadronVerify.exe was not created." }
+          if (-not (Test-Path "dist\HadronSign.exe")) { throw "dist\HadronSign.exe was not created." }
+          if (-not (Test-Path "dist\HadronCapsule.exe")) { throw "dist\HadronCapsule.exe was not created." }
+          if (-not (Test-Path "dist\HadronReproduce.exe")) { throw "dist\HadronReproduce.exe was not created." }
+          if (-not (Test-Path "dist\HadronRegression.exe")) { throw "dist\HadronRegression.exe was not created." }
+          if (-not (Test-Path "dist\HadronCampaign.exe")) { throw "dist\HadronCampaign.exe was not created." }
+          if (-not (Test-Path "dist\HadronCampaignRun.exe")) { throw "dist\HadronCampaignRun.exe was not created." }
+          if (-not (Test-Path "dist\HadronPipeline.exe")) { throw "dist\HadronPipeline.exe was not created." }
+          if (-not (Test-Path "dist\HadronRecovery.exe")) { throw "dist\HadronRecovery.exe was not created." }
+          if (-not (Test-Path "dist\HadronUpdater.exe")) { throw "dist\HadronUpdater.exe was not created." }
+
+      - name: Smoke test packaged console executables
+        shell: pwsh
+        run: |
+          $Smoke = Join-Path $env:RUNNER_TEMP "hadron-packaged-smoke"
+          New-Item -ItemType Directory -Force -Path $Smoke | Out-Null
+          & ".\dist\HadronDoctor.exe" --data-dir $Smoke --benchmark-events 100 --output (Join-Path $Smoke "doctor.json")
+          if ($LASTEXITCODE -ne 0) { throw "HadronDoctor.exe failed." }
+          & ".\dist\HadronBatch.exe" --events 100 --seed 2400 --output (Join-Path $Smoke "batch.json")
+          if ($LASTEXITCODE -ne 0) { throw "HadronBatch.exe failed." }
+          & ".\dist\HadronJobs.exe" "example_jobs.json" --workers 2 --output (Join-Path $Smoke "jobs.json")
+          if ($LASTEXITCODE -ne 0) { throw "HadronJobs.exe workers=2 failed." }
+          & ".\dist\HadronRecovery.exe" create --data-dir $Smoke --output (Join-Path $Smoke "snapshot.hadron-recovery.zip")
+          if ($LASTEXITCODE -ne 0) { throw "HadronRecovery.exe create failed." }
+          & ".\dist\HadronRecovery.exe" inspect (Join-Path $Smoke "snapshot.hadron-recovery.zip")
+          if ($LASTEXITCODE -ne 0) { throw "HadronRecovery.exe inspect failed." }
+          $HelpTools = @("HadronVerify.exe","HadronSign.exe","HadronCapsule.exe","HadronReproduce.exe","HadronRegression.exe","HadronCampaign.exe","HadronCampaignRun.exe","HadronPipeline.exe","HadronUpdater.exe")
+          foreach ($Tool in $HelpTools) {
+            & ".\dist\$Tool" --help | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "$Tool --help failed." }
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "installer\Hadron.iss"
+          if (-not (Test-Path "release\Hadron-Setup-v3.0.0.exe")) { throw "Windows installer was not created." }
+
+      - name: Smoke test silent installer
+        shell: pwsh
+        run: |
+          $InstallDir = Join-Path $env:RUNNER_TEMP "HadronInstalled"
+          & ".\release\Hadron-Setup-v3.0.0.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="$InstallDir"
+          if ($LASTEXITCODE -ne 0) { throw "Silent installer returned failure." }
+          if (-not (Test-Path (Join-Path $InstallDir "Hadron.exe"))) { throw "Installed Hadron.exe is missing." }
+          if (-not (Test-Path (Join-Path $InstallDir "HadronRecovery.exe"))) { throw "Installed HadronRecovery.exe is missing." }
+          if (-not (Test-Path (Join-Path $InstallDir "HadronUpdater.exe"))) { throw "Installed HadronUpdater.exe is missing." }
+          & (Join-Path $InstallDir "HadronDoctor.exe") --data-dir (Join-Path $env:RUNNER_TEMP "hadron-installed-doctor") --benchmark-events 50 --output (Join-Path $env:RUNNER_TEMP "installed-doctor.json")
+          if ($LASTEXITCODE -ne 0) { throw "Installed HadronDoctor.exe failed." }
+
+      - name: Generate release manifest
+        shell: pwsh
+        run: |
+          python scripts/make_release_manifest.py --output release/Hadron-v3.0.0-manifest.json dist/Hadron.exe dist/HadronBatch.exe dist/HadronJobs.exe dist/HadronDoctor.exe dist/HadronVerify.exe dist/HadronSign.exe dist/HadronCapsule.exe dist/HadronReproduce.exe dist/HadronRegression.exe dist/HadronCampaign.exe dist/HadronCampaignRun.exe dist/HadronPipeline.exe dist/HadronRecovery.exe dist/HadronUpdater.exe release/Hadron-Setup-v3.0.0.exe
+
+      - name: Sign tagged release as bxane (bxane-dev)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          HADRON_RELEASE_SIGNING_KEY_B64: ${{ secrets.HADRON_RELEASE_SIGNING_KEY_B64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:HADRON_RELEASE_SIGNING_KEY_B64)) { throw "Missing HADRON_RELEASE_SIGNING_KEY_B64 secret. Tagged stable releases must be signed by bxane." }
+          $Key = Join-Path $env:RUNNER_TEMP "hadron-bxane-release-private.pem"
+          [IO.File]::WriteAllBytes($Key,[Convert]::FromBase64String($env:HADRON_RELEASE_SIGNING_KEY_B64))
+          & ".\dist\HadronSign.exe" sign "release\Hadron-v3.0.0-manifest.json" --private $Key --output "release\Hadron-v3.0.0-manifest.signature.json"
+          if ($LASTEXITCODE -ne 0) { throw "Release signing failed." }
+          python -c "from hadron_release import verify_release_signature; r=verify_release_signature(r'release\Hadron-v3.0.0-manifest.json', r'release\Hadron-v3.0.0-manifest.signature.json', r'release-public.pem'); print(r); raise SystemExit(0 if r['ok'] else 2)"
+          if ($LASTEXITCODE -ne 0) { throw "Release signature verification failed." }
+          Remove-Item $Key -Force
+
+      - name: Upload standalone executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hadron-Windows-Standalone
+          path: |
+            dist/Hadron.exe
+            dist/HadronBatch.exe
+            dist/HadronJobs.exe
+            dist/HadronDoctor.exe
+            dist/HadronVerify.exe
+            dist/HadronSign.exe
+            dist/HadronCapsule.exe
+            dist/HadronReproduce.exe
+            dist/HadronRegression.exe
+            dist/HadronCampaign.exe
+            dist/HadronCampaignRun.exe
+            dist/HadronPipeline.exe
+            dist/HadronRecovery.exe
+            dist/HadronUpdater.exe
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hadron-Windows-Installer
+          path: |
+            release/Hadron-Setup-v3.0.0.exe
+            release/Hadron-v3.0.0-manifest.json
+            release/Hadron-v3.0.0-manifest.signature.json
+            release-public.pem
+
+      - name: Attach files to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Hadron ${{ github.ref_name }} — bxane (bxane-dev)
+          body: |
+            Stable Hadron release by **bxane (bxane-dev)**.
+            Repository: https://github.com/bxane-dev/hadron
+
+            Update assets are protected by the pinned Hadron Ed25519 release key.
+          files: |
+            dist/Hadron.exe
+            dist/HadronBatch.exe
+            dist/HadronJobs.exe
+            dist/HadronDoctor.exe
+            dist/HadronVerify.exe
+            dist/HadronSign.exe
+            dist/HadronCapsule.exe
+            dist/HadronReproduce.exe
+            dist/HadronRegression.exe
+            dist/HadronCampaign.exe
+            dist/HadronCampaignRun.exe
+            dist/HadronPipeline.exe
+            dist/HadronRecovery.exe
+            dist/HadronUpdater.exe
+            release/Hadron-Setup-v3.0.0.exe
+            release/Hadron-v3.0.0-manifest.json
+            release/Hadron-v3.0.0-manifest.signature.json
+            release-public.pem
