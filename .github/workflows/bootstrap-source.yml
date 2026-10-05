@@ -28,7 +28,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          : > "$RUNNER_TEMP/hadron-source.tar.xz"\n          for chunk in bootstrap/part-*.b64 bootstrap/rest.b64; do\n            base64 --decode "$chunk" >> "$RUNNER_TEMP/hadron-source.tar.xz"\n          done
+          : > "$RUNNER_TEMP/hadron-source.tar.xz"
+          for chunk in bootstrap/part-*.b64 bootstrap/rest.b64; do
+            base64 --decode "$chunk" >> "$RUNNER_TEMP/hadron-source.tar.xz"
+          done
           xz --test "$RUNNER_TEMP/hadron-source.tar.xz"
 
           mkdir -p "$RUNNER_TEMP/hadron-source"
