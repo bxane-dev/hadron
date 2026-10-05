@@ -105,8 +105,15 @@ jobs:
         run: |
           $InstallDir = Join-Path $env:RUNNER_TEMP "HadronInstalled"
           $InstallLog = Join-Path $env:RUNNER_TEMP "hadron-install.log"
-          & ".\release\Hadron-Setup-v3.0.0.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="$InstallDir" /LOG="$InstallLog"
-          $InstallerExit = $LASTEXITCODE
+          $InstallArgs = @(
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/DIR=`"$InstallDir`"",
+            "/LOG=`"$InstallLog`""
+          )
+          $InstallProcess = Start-Process -FilePath ".\release\Hadron-Setup-v3.0.0.exe" -ArgumentList $InstallArgs -Wait -PassThru
+          $InstallerExit = $InstallProcess.ExitCode
           Write-Host "Installer exit code: $InstallerExit"
           if ($InstallerExit -ne 0 -and (Test-Path $InstallLog)) {
             Write-Warning "Installer returned a non-zero code; validating the actual installed state."
