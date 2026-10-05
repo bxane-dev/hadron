@@ -1,0 +1,12 @@
+{
+  "format": "hadron-release-signature",
+  "format_version": 1,
+  "algorithm": "Ed25519",
+  "publisher": "bxane",
+  "publisher_github": "bxane-dev",
+  "repository": "bxane-dev/hadron",
+  "manifest_name": "Hadron-v3.0.0-manifest.json",
+  "manifest_sha256": "43347abbd0463673807dbb8000d29abb2f334320106698e2f90aa73f2b7311e0",
+  "public_key_fingerprint_sha256": "738c934d58220a2420103e891add9c7602b119d00a19ff51e9b69ca854a3ee76",
+  "signature_base64": "FlkewjWGQeTvab2/jABZvPvMF/8gc3ZrWRanglWw97YT5/QEKEZOqh/QD2D5Iko+h1ZnmVlmxLv+WnE6erJ2AA=="
+}
