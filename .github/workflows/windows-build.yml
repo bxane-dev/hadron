@@ -3,17 +3,18 @@ name: Windows Build
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "main"
     tags:
       - "v*"
-  issues:
-    types: [opened]
+    paths:
+      - ".release/build-v3.0.0"
 
 permissions:
   contents: write
 
 jobs:
   build-windows:
-    if: github.event_name != 'issues' || github.event.issue.title == 'build-hadron-v3.0.0'
     runs-on: windows-latest
 
     steps:
