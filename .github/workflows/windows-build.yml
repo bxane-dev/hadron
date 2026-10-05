@@ -5,12 +5,15 @@ on:
   push:
     tags:
       - "v*"
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
 
 jobs:
   build-windows:
+    if: github.event_name != 'issues' || github.event.issue.title == 'build-hadron-v3.0.0'
     runs-on: windows-latest
 
     steps:
