@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
@@ -127,4 +128,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()
