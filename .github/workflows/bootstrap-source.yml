@@ -46,10 +46,8 @@ jobs:
           echo "Extracted source root: $SOURCE"
           find "$SOURCE" -maxdepth 2 -type f | head -100
 
-          rm -rf bootstrap
-          rsync -a --exclude='.git/' "$SOURCE"/ ./
-
-          rm -f .github/workflows/bootstrap-source.yml
+          rm -rf bootstrap payload
+          rsync -a --exclude='.git/' --exclude='.github/workflows/' "$SOURCE"/ ./
 
           if find . -type f -iname '*private*.pem' -not -path './.git/*' | grep -q .; then
             echo "Refusing to commit a private PEM key."
