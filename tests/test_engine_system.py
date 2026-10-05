@@ -1,4 +1,5 @@
 import tempfile
+from contextlib import closing
 import unittest
 from pathlib import Path
 
@@ -91,7 +92,7 @@ class SystemTests(unittest.TestCase):
             backup = tmp / "backup.db"
             restored = tmp / "restored.db"
 
-            with sqlite3.connect(source) as conn:
+            with closing(sqlite3.connect(source)) as conn:
                 conn.execute("CREATE TABLE t (x INTEGER)")
                 conn.execute("INSERT INTO t VALUES (7)")
                 conn.commit()
@@ -99,14 +100,14 @@ class SystemTests(unittest.TestCase):
             backup_database(source, backup)
             restore_database(backup, restored)
 
-            with sqlite3.connect(restored) as conn:
+            with closing(sqlite3.connect(restored)) as conn:
                 value = conn.execute("SELECT x FROM t").fetchone()[0]
             self.assertEqual(value, 7)
 
     def test_database_diagnostics(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "diag.db"
-            with sqlite3.connect(path) as conn:
+            with closing(sqlite3.connect(path)) as conn:
                 conn.execute("CREATE TABLE runs (id INTEGER)")
                 conn.commit()
             diag = database_diagnostics(path)
